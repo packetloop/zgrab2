@@ -86,10 +86,12 @@ func (target *ScanTarget) OpenUDP(flags *BaseFlags, udp *UDPFlags) (net.Conn, er
 			local.Port = int(udp.LocalPort)
 		}
 	}
+	og.Info("OpenUDP local ", local.String()
 	remote, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
 		return nil, err
 	}
+	og.Info("OpenUDP remote ", remote.String()
 	conn, err := net.DialUDP("udp", local, remote)
 	if err != nil {
 		return nil, err
