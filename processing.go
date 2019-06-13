@@ -129,8 +129,8 @@ func grabTarget(input ScanTarget, m *Monitor) []byte {
 		ipstr = s
 	}
 
-	// raw := Grab{IP: ipstr, Domain: input.Domain, Data: moduleResult}
-	raw := Grab{IP: ipstr, Domain: input.Domain}
+	raw := Grab{IP: ipstr, Domain: input.Domain, Data: moduleResult}
+	// raw := Grab{IP: ipstr, Domain: input.Domain}
 
 	var outputData interface{} = raw
 

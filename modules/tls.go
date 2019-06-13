@@ -84,7 +84,7 @@ func (s *TLSScanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, 
 		}
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
-	return zgrab2.SCAN_SUCCESS, conn.GetLog(), nil
+	return zgrab2.SCAN_SUCCESS, conn.GetLog().HandshakeLog.ServerCertificates.Certificate, nil
 }
 
 // Protocol returns the protocol identifer for the scanner.
