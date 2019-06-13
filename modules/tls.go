@@ -87,8 +87,8 @@ func (s *TLSScanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, 
 
 	output := conn.GetLog()
 	output.HandshakeLog.ServerCertificates.Certificate.Parsed = nil
-	for _, e := range output.HandshakeLog.ServerCertificates.Chain {
-		e.Parsed = nil
+	for i := range output.HandshakeLog.ServerCertificates.Chain {
+		(&output.HandshakeLog.ServerCertificates.Chain[i]).Parsed = nil
 	}
 	return zgrab2.SCAN_SUCCESS, output, nil
 }
