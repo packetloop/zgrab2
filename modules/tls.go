@@ -17,7 +17,7 @@ type TLSScanner struct {
 	config *TLSFlags
 }
 
-type TLSResult struct {
+type TLSCerts struct {
 	Raw   []byte   `json:"raw"`
 	Chain [][]byte `json:"chain"`
 }
@@ -90,13 +90,13 @@ func (s *TLSScanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, 
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
 
-	output := TLSResult{}
-	output.Raw = conn.GetLog().HandshakeLog.ServerCertificates.Certificate.Raw
-	output.Chain = make([][]byte, len(conn.GetLog().HandshakeLog.ServerCertificates.Chain))
+	certs := TLSCerts{}
+	certs.Raw = conn.GetLog().HandshakeLog.ServerCertificates.Certificate.Raw
+	certs.Chain = make([][]byte, len(conn.GetLog().HandshakeLog.ServerCertificates.Chain))
 	for i := range conn.GetLog().HandshakeLog.ServerCertificates.Chain {
-		output.Chain[i] = conn.GetLog().HandshakeLog.ServerCertificates.Chain[i].Raw
+		certs.Chain[i] = conn.GetLog().HandshakeLog.ServerCertificates.Chain[i].Raw
 	}
-	return zgrab2.SCAN_SUCCESS, output, nil
+	return zgrab2.SCAN_SUCCESS, certs, nil
 }
 
 // Protocol returns the protocol identifer for the scanner.
