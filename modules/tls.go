@@ -2,7 +2,6 @@ package modules
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zgrab2"
 )
 
@@ -16,6 +15,11 @@ type TLSModule struct {
 
 type TLSScanner struct {
 	config *TLSFlags
+}
+
+type TLSResult struct {
+	Raw   []byte   `json:"raw"`
+	Chain [][]byte `json:"chain"`
 }
 
 func init() {
@@ -86,10 +90,11 @@ func (s *TLSScanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, 
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
 
-	output := zgrab2.TLSLog{HandshakeLog: &tls.ServerHandshake{ServerCertificates: conn.GetLog().HandshakeLog.ServerCertificates}}
-	output.HandshakeLog.ServerCertificates.Certificate.Parsed = nil
-	for i := range output.HandshakeLog.ServerCertificates.Chain {
-		(&output.HandshakeLog.ServerCertificates.Chain[i]).Parsed = nil
+	output := TLSResult{}
+	output.Raw = conn.GetLog().HandshakeLog.ServerCertificates.Certificate.Raw
+	output.Chain = make([][]byte, len(conn.GetLog().HandshakeLog.ServerCertificates.Chain))
+	for i := range conn.GetLog().HandshakeLog.ServerCertificates.Chain {
+		output.Chain[i] = conn.GetLog().HandshakeLog.ServerCertificates.Chain[i].Raw
 	}
 	return zgrab2.SCAN_SUCCESS, output, nil
 }
