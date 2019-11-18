@@ -24,7 +24,7 @@ wsdiscovery_r 2913 REQUEST: 0d00  \r\0
 But ip sets for all <*> requests are similar. So we scan for <.>, then empty packet, then column and zero byte request.
 */
 
-var requests := [4]string{"3c2e3e00", "", "3a00", "00"} // <.>, empty packet, column, zero byte
+var requests = [4]string{"3c2e3e00", "", "3a00", "00"} // <.>, empty packet, column, zero byte
 var min_vulnerable_size int = 200 // 200 is about 4x amplification, typical non-amplifier is about half of that
 
 // Results is the struct that is returned to the zgrab2 framework from Scan()
@@ -119,12 +119,21 @@ func IsTargetVulnerable(hexstr string, sock net.Conn) (bool, string, error) {
         return false, "", err
     }
     // get response
+    var maxTries = 3
+    var response = ""
+    var nn = 0
+    for maxTries > 0 {
     buf := make([]byte, 16384) 
     n, err := io.ReadAtLeast(sock, buf, 1)
+    nn += n
+    response += base64.StdEncoding.EncodeToString(buf[:n])
+    maxTries--
     if err != nil {
-        return false, "", err
+        maxTries = 0
+        //return false, "", err
     }
-    return (n > min_vulnerable_size), base64.StdEncoding.EncodeToString(buf[:n]), nil
+}
+    return (nn > min_vulnerable_size), response, nil
 }
 
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
