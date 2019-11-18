@@ -134,12 +134,16 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
     }
     defer sock.Close()
 
+    var maxResponse string = ""
     for _, data := range requests { // we run requests sequentally, since parralell requests can interfere with each other
     	isVulnerable, response, _ := IsTargetVulnerable(data, sock)
-        if isVulnerable {
-            return zgrab2.SCAN_SUCCESS, Results{isVulnerable, response}, nil
+        if isVulnerable && len(response) > len(maxResponse){
+            maxResponse = response
         }
     }
+    if len(maxResponse) > 0 {
+        return zgrab2.SCAN_SUCCESS, Results{true, maxResponse}, nil
+    }    
 
     return zgrab2.SCAN_SUCCESS, Results{false, ""}, nil
 }
