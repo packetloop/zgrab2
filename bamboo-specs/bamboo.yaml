@@ -16,6 +16,13 @@ stages:
 build only:
   key: BUILDONLY
   description: build the container
+  docker:
+    image: arb-artifactory.eng.netscout.com/docker-dev-local/atlas/golang/1.23.5:dev-v1.0.7b59975
+    volumes:
+      ${bamboo.working.directory}: ${bamboo.working.directory}
+      ${bamboo.tmp.directory}: ${bamboo.tmp.directory}
+      /var/run/docker.sock: /var/run/docker.sock
+    docker-run-arguments: []
   requirements:
   - system.DinD
   artifact-subscriptions: []
@@ -26,11 +33,13 @@ build only:
         buildHangingConfig.enabled: 'false'
   tasks:
   - checkout:
+      path: app/
       force-clean-build: false
       description: Checkout Default Repository
   - script:
       interpreter: SHELL
       scripts:
+      - docker rm $(docker ls -aq)
       - docker rmi $(docker image ls -q)
       - echo "Disk Space available -- $(df -hk)"
       description: Delete all docker images from agent and show disk space
@@ -39,8 +48,9 @@ build only:
       scripts:
       - |-
         #!/bin/bash        
-        version=dev-${bamboo.major_minor}.${bamboo_planRepository_1_revision:0:7}
-        docker build . -t dev-build-${bamboo_planRepository_1_revision:0:7}
+        cd app
+        go env -w GOFLAGS=-buildvcs=false
+        make all
       description: Build requested Docker image and push it to artifactory
   final-tasks:
   - clean:
