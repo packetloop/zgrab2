@@ -12,6 +12,7 @@ import (
 type TLSFlags struct {
 	zgrab2.BaseFlags `group:"Basic Options"`
 	zgrab2.TLSFlags  `group:"TLS Options"`
+	RawCertificatesOut bool `long:"raw-certificate" description:"Write raw certificates to log"`
 }
 
 type TLSModule struct {
@@ -20,6 +21,12 @@ type TLSModule struct {
 type TLSScanner struct {
 	config            *TLSFlags
 	dialerGroupConfig *zgrab2.DialerGroupConfig
+}
+
+// structure holds raw certificate data
+type TLSCerts struct {
+	Raw   []byte   `json:"raw"`
+	Chain [][]byte `json:"chain"`
 }
 
 func init() {
@@ -93,9 +100,14 @@ func (s *TLSScanner) Scan(ctx context.Context, dialerGroup *zgrab2.DialerGroup, 
 			if tlsConn, ok := conn.(*zgrab2.TLSConnection); ok {
 				if tlsLog := tlsConn.GetLog(); tlsLog != nil {
 					if tlsLog.HandshakeLog.ServerHello != nil {
-						// If we got far enough to get a valid ServerHello, then
-						// consider it to be a positive TLS detection.
-						return zgrab2.TryGetScanStatus(err), tlsLog, err
+						if !s.config.RawCertificatesOut {
+							// If we got far enough to get a valid ServerHello, then
+							// consider it to be a positive TLS detection.
+							return zgrab2.TryGetScanStatus(err), tlsLog, err
+						} else {
+							// don't log error when emitting raw certificate data
+							return zgrab2.TryGetScanStatus(err), nil, err
+						}
 					}
 					// Otherwise, detection failed.
 				}
@@ -106,6 +118,15 @@ func (s *TLSScanner) Scan(ctx context.Context, dialerGroup *zgrab2.DialerGroup, 
 	tlsConn, ok := conn.(*zgrab2.TLSConnection)
 	if !ok {
 		return zgrab2.SCAN_UNKNOWN_ERROR, nil, errors.New("scan returned non-TLS connection")
+	}
+	if s.config.RawCertificatesOut {
+		certs := TLSCerts{}
+		certs.Raw = tlsConn.GetLog().HandshakeLog.ServerCertificates.Certificate.Raw
+		certs.Chain = make([][]byte, len(tlsConn.GetLog().HandshakeLog.ServerCertificates.Chain))
+		for i := range tlsConn.GetLog().HandshakeLog.ServerCertificates.Chain {
+			certs.Chain[i] = tlsConn.GetLog().HandshakeLog.ServerCertificates.Chain[i].Raw
+		}
+		return zgrab2.SCAN_SUCCESS, certs, nil
 	}
 	return zgrab2.SCAN_SUCCESS, tlsConn.GetLog(), nil
 }
