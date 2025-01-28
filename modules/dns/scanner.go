@@ -3,18 +3,19 @@
 package dns
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 	"encoding/base64"
 	"encoding/binary"
 	"io"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/zmap/zgrab2"
 )
 
 // Results is the struct that is returned to the zgrab2 framework from Scan()
 type Results struct {
-	IsDns                    bool     `json:"is_dns"`
-	DnsRecursionEnabled      bool     `json:"dns_recursion_enabled"`
-	FullResponse             string   `json:"full_response"`
+	IsDns               bool   `json:"is_dns"`
+	DnsRecursionEnabled bool   `json:"dns_recursion_enabled"`
+	FullResponse        string `json:"full_response"`
 }
 
 // Flags holds the command-line configuration for the dns scan module.
@@ -26,6 +27,11 @@ type Flags struct {
 
 // Module implements the zgrab2.Module interface.
 type Module struct {
+}
+
+// Description implements zgrab2.ScanModule.
+func (module *Module) Description() string {
+	return "scan for DNS services with enabled dns-recursion"
 }
 
 // Scanner implements the zgrab2.Scanner interface.
@@ -100,19 +106,19 @@ var transaction_id uint16 = 0xdead
 var dns_recursion_query []byte = DnsRecursionQuery()
 
 // based on https://svn.nmap.org/nmap/scripts/dns-recursion.nse
-func DnsRecursionQuery() ([]byte) {
-	domain := "\x03www\x09wikipedia\x03org\x00"			// www.wikipedia.org - encoded and null-terminated
-	ret := make([]byte, 8*2 + len(domain))
-	binary.BigEndian.PutUint16(ret[ 0: 2], transaction_id)		// Transaction-ID
-	binary.BigEndian.PutUint16(ret[ 2: 4], 0x0100)			// flags (recursion desired)
-	binary.BigEndian.PutUint16(ret[ 4: 6], 0x0001)			// 1 question
-	binary.BigEndian.PutUint16(ret[ 6: 8], 0x0000)			// 0 answers
-	binary.BigEndian.PutUint16(ret[ 8:10], 0x0000)			// 0 authority
-	binary.BigEndian.PutUint16(ret[10:12], 0x0000)			// 0 additional
-	copy(ret[12:], domain)						// domain
-	ret_end := ret[6*2 + len(domain):]
-	binary.BigEndian.PutUint16(ret_end[0:2], 0x0001)		// type A
-	binary.BigEndian.PutUint16(ret_end[2:4], 0x0001)		// class IN
+func DnsRecursionQuery() []byte {
+	domain := "\x03www\x09wikipedia\x03org\x00" // www.wikipedia.org - encoded and null-terminated
+	ret := make([]byte, 8*2+len(domain))
+	binary.BigEndian.PutUint16(ret[0:2], transaction_id) // Transaction-ID
+	binary.BigEndian.PutUint16(ret[2:4], 0x0100)         // flags (recursion desired)
+	binary.BigEndian.PutUint16(ret[4:6], 0x0001)         // 1 question
+	binary.BigEndian.PutUint16(ret[6:8], 0x0000)         // 0 answers
+	binary.BigEndian.PutUint16(ret[8:10], 0x0000)        // 0 authority
+	binary.BigEndian.PutUint16(ret[10:12], 0x0000)       // 0 additional
+	copy(ret[12:], domain)                               // domain
+	ret_end := ret[6*2+len(domain):]
+	binary.BigEndian.PutUint16(ret_end[0:2], 0x0001) // type A
+	binary.BigEndian.PutUint16(ret_end[2:4], 0x0001) // class IN
 	return ret
 }
 
@@ -139,7 +145,7 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 	}
 	is_dns := binary.BigEndian.Uint16(buf[0:2]) == transaction_id
 	// QR == 1 and RA == 1 and RCODE == 0 - is response and recursion available and no error, see rfc1035 4.1.1(page 26)
-	dns_recursion_on := (buf[2] & 0x80 == 0x80) && (buf[3] & 0x85 == 0x80)
+	dns_recursion_on := (buf[2]&0x80 == 0x80) && (buf[3]&0x85 == 0x80)
 	response_base64 := base64.StdEncoding.EncodeToString(buf[:n])
 
 	return zgrab2.SCAN_SUCCESS, Results{is_dns, dns_recursion_on, response_base64}, nil
