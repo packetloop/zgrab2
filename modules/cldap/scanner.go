@@ -3,18 +3,19 @@
 package cldap
 
 import (
+	"encoding/base64"
+	"encoding/hex"
+	"io"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zgrab2"
-	"encoding/base64"
-	"io"
-        "encoding/hex"
-        ber "gopkg.in/asn1-ber.v1"
+	ber "gopkg.in/asn1-ber.v1"
 )
 
 // Results is the struct that is returned to the zgrab2 framework from Scan()
 type Results struct {
-	IsCldap                  bool     `json:"is_cldap"`
-	FullResponse             string   `json:"full_response"`
+	IsCldap      bool   `json:"is_cldap"`
+	FullResponse string `json:"full_response"`
 }
 
 // Flags holds the command-line configuration for the cldap scan module.
@@ -26,6 +27,11 @@ type Flags struct {
 
 // Module implements the zgrab2.Module interface.
 type Module struct {
+}
+
+// Description implements zgrab2.ScanModule.
+func (module *Module) Description() string {
+	return "scan for CLDAP servers"
 }
 
 // Scanner implements the zgrab2.Scanner interface.
@@ -99,11 +105,11 @@ func (scanner *Scanner) GetPort() uint {
 var cldap_ddos_query []byte = CldapRecursionQuery()
 var transaction_id int64 = ber.DecodePacket(cldap_ddos_query).Children[0].Value.(int64)
 
-func CldapRecursionQuery() ([]byte) {
-        // zmap/examples/udp-probes/ldap_389.pkt content
-        // only change - 30840000002d020101 -> 30840000002d02013e
-        // to make unique id(01 -> 3e)
-        v, _ := hex.DecodeString("30840000002d02013e63840000002404000a01000a0100020100020100010100870b6f626a656374636c617373308400000000000a")
+func CldapRecursionQuery() []byte {
+	// zmap/examples/udp-probes/ldap_389.pkt content
+	// only change - 30840000002d020101 -> 30840000002d02013e
+	// to make unique id(01 -> 3e)
+	v, _ := hex.DecodeString("30840000002d02013e63840000002404000a01000a0100020100020100010100870b6f626a656374636c617373308400000000000a")
 	return v
 }
 
@@ -124,15 +130,15 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 	if err != nil {
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
-        parsed_packet := ber.DecodePacket(buf)
+	parsed_packet := ber.DecodePacket(buf)
 
-        var is_cldap bool = false
-        if parsed_packet != nil && len(parsed_packet.Children) > 0 {
-                v, succ := parsed_packet.Children[0].Value.(int64)
-                if succ && v == transaction_id {
-                        is_cldap = true
-                }
-        }
+	var is_cldap bool = false
+	if parsed_packet != nil && len(parsed_packet.Children) > 0 {
+		v, succ := parsed_packet.Children[0].Value.(int64)
+		if succ && v == transaction_id {
+			is_cldap = true
+		}
+	}
 	response_base64 := base64.StdEncoding.EncodeToString(buf[:n])
 
 	return zgrab2.SCAN_SUCCESS, Results{is_cldap, response_base64}, nil
