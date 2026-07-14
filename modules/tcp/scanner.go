@@ -5,6 +5,7 @@
 package tcp
 
 import (
+	"context"
 	"encoding/hex"
 
 	log "github.com/sirupsen/logrus"
@@ -33,7 +34,8 @@ func (module *Module) Description() string {
 
 // Scanner implements the zgrab2.Scanner interface.
 type Scanner struct {
-	config *Flags
+	config            *Flags
+	dialerGroupConfig *zgrab2.DialerGroupConfig
 	// probe  []byte
 }
 
@@ -72,6 +74,10 @@ func (flags *Flags) Help() string {
 func (scanner *Scanner) Init(flags zgrab2.ScanFlags) error {
 	f, _ := flags.(*Flags)
 	scanner.config = f
+	scanner.dialerGroupConfig = &zgrab2.DialerGroupConfig{
+		TransportAgnosticDialerProtocol: zgrab2.TransportTCP,
+		BaseFlags:                       &f.BaseFlags,
+	}
 	return nil
 }
 
@@ -90,6 +96,16 @@ func (scanner *Scanner) GetTrigger() string {
 	return scanner.config.Trigger
 }
 
+// GetDialerGroupConfig returns the DialerGroupConfig for the scanner.
+func (scanner *Scanner) GetDialerGroupConfig() *zgrab2.DialerGroupConfig {
+	return scanner.dialerGroupConfig
+}
+
+// GetScanMetadata returns any metadata on the scan itself from this module.
+func (scanner *Scanner) GetScanMetadata() any {
+	return nil
+}
+
 // Protocol returns the protocol identifier of the scan.
 func (scanner *Scanner) Protocol() string {
 	return "tcp"
@@ -100,8 +116,8 @@ func (scanner *Scanner) GetPort() uint {
 	return scanner.config.Port
 }
 
-func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
-	conn, err := target.Open(&scanner.config.BaseFlags)
+func (scanner *Scanner) Scan(ctx context.Context, dialGroup *zgrab2.DialerGroup, target *zgrab2.ScanTarget) (zgrab2.ScanStatus, any, error) {
+	conn, err := dialGroup.Dial(ctx, target)
 	data, _ := hex.DecodeString(scanner.config.Probe)
 	if err != nil {
 		return zgrab2.TryGetScanStatus(err), nil, err

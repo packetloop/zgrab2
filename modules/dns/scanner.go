@@ -3,6 +3,7 @@
 package dns
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"io"
@@ -22,7 +23,6 @@ type Results struct {
 // Populated by the framework.
 type Flags struct {
 	zgrab2.BaseFlags
-	zgrab2.UDPFlags
 }
 
 // Module implements the zgrab2.Module interface.
@@ -36,7 +36,8 @@ func (module *Module) Description() string {
 
 // Scanner implements the zgrab2.Scanner interface.
 type Scanner struct {
-	config *Flags
+	config            *Flags
+	dialerGroupConfig *zgrab2.DialerGroupConfig
 }
 
 // RegisterModule registers the zgrab2 module.
@@ -74,6 +75,10 @@ func (flags *Flags) Help() string {
 func (scanner *Scanner) Init(flags zgrab2.ScanFlags) error {
 	f, _ := flags.(*Flags)
 	scanner.config = f
+	scanner.dialerGroupConfig = &zgrab2.DialerGroupConfig{
+		TransportAgnosticDialerProtocol: zgrab2.TransportUDP,
+		BaseFlags:                       &f.BaseFlags,
+	}
 	return nil
 }
 
@@ -90,6 +95,16 @@ func (scanner *Scanner) GetName() string {
 // GetTrigger returns the Trigger defined in the Flags.
 func (scanner *Scanner) GetTrigger() string {
 	return scanner.config.Trigger
+}
+
+// GetDialerGroupConfig returns the DialerGroupConfig for the scanner.
+func (scanner *Scanner) GetDialerGroupConfig() *zgrab2.DialerGroupConfig {
+	return scanner.dialerGroupConfig
+}
+
+// GetScanMetadata returns any metadata on the scan itself from this module.
+func (scanner *Scanner) GetScanMetadata() any {
+	return nil
 }
 
 // Protocol returns the protocol identifier of the scan.
@@ -122,8 +137,8 @@ func DnsRecursionQuery() []byte {
 	return ret
 }
 
-func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
-	sock, err := target.OpenUDP(&scanner.config.BaseFlags, &scanner.config.UDPFlags)
+func (scanner *Scanner) Scan(ctx context.Context, dialGroup *zgrab2.DialerGroup, target *zgrab2.ScanTarget) (zgrab2.ScanStatus, any, error) {
+	sock, err := dialGroup.Dial(ctx, target)
 	if err != nil {
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
